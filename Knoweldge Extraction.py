@@ -1,7 +1,26 @@
-#!/usr/bin/env python
-# coding: utf-8
+#This files extracts knowledge from the document collection.
+# Users makes some queries regarding some properties of the virus and the functions searches the collection for answers
+# It returns the sentences with the exact properties
 
-# In[1]:
+# Approach:
+# The user makes two queries. 
+# A general and a specific one. The general regards the abstract topic the user is interested in. Then on the detailed he/she gets the exact information
+#Example:
+# General query: mortality
+# Detailed: mortality rate
+# General: hospital
+# Detailed: icu duration
+
+# There are two collection of documents (before and after May)
+# The default collection is the one after May
+# User can select to search either collections
+# In case not enough information is generated from on collection user can select to search both collections
+
+# METHDOLOGY
+# For each cluster on both collection the aggregated TF-iDF of every keyword is calculated.
+# For every general query, the two clusters with the higher aggregated TF-iDF (on the specific keywords) are selected.
+# In addition, the topic keywords extracted from LDA for every cluster are also explored.
+# If a query matches a topic keyword, then the cluster with the topic keyword is also selected
 
 
 import pandas as pd
