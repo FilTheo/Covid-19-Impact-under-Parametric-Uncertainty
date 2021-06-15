@@ -1,9 +1,4 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
-
+#The proposed framework is described
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,11 +10,8 @@ from scipy.optimize import minimize
 from sklearn.metrics import mean_squared_log_error, mean_squared_error
 
 
-# In[4]:
-
-
-#Add a function to return the day of interventation
-#Preprocess the dataset a bit
+#Data used for evaluation
+#Data describe the number of total cases, the population and some extra demographics
 cases = pd.read_csv('D:/complex data project/ts/train.csv')
 pop = pd.read_csv('D:/complex data project/ts/population_data.csv')
 extra = pd.read_csv('D:/complex data project/ts/covid19countryinfo.csv')
@@ -46,16 +38,9 @@ df = pd.merge(df, extra, left_on = 'Name' , right_on = 'country', how='inner').d
 df
 
 
-# ## Building the equations
-# The fundamental functions necessary
-# 
+#Building the mathematical model.
 
-# In[5]:
-
-
-#Previous model was extremely slow!
-#I have to fix the parameters a bit and define a new simpler model!
-
+#Defining the differential equations
 #Susceptible: S = -beta * Infected * Susceptible
 def dS_dt(beta , I , S):
      return(- beta * I * S)
@@ -93,10 +78,6 @@ def dD_dt(C , d_crit , prob_crit_fatal ):
     #those who are critical multiplied by the prob
     return ( prob_crit_fatal * C/d_crit)
 
-
-# In[11]:
-
-
 #Model:
 
 #Defining the model:
@@ -106,15 +87,15 @@ def model(t , y , R_t , inc_days , inf_days , d_hosp , d_crit , prob_assymp ,  p
     @Parameters description:
     t : time step
     y : previous values of equations
-    R_t : reproduction number
-    inc_days : incubation days
-    inf_days : infectious days
-    d_hosp : days a patient spent on hospital either recoviering or going critical
-    d_crit : days a patient is in critical state til recover or die
-    prob_assymp : probability of mild or assymptomatic.(Not hospital needed)
-    prob_severe_critical : probability going to critical state(while on hospital)
-    prob_crit_fatal : probability going from critical to fatal
-      =b : testing -> attack rate
+    R_t : reproduction number #requires estimations
+    inc_days : incubation days #given as a constant parameter
+    inf_days : infectious days # given as a constant parameter
+    d_hosp : days a patient spent on hospital either recoviering or going critical # given as a constant parameter
+    d_crit : days a patient is in critical state til recover or die # given as a constant parameter
+    prob_assymp : probability of mild or assymptomatic.(Not hospital needed) # given as a constant parameter
+    prob_severe_critical : probability going to critical state(while on hospital) # given as a constant parameter
+    prob_crit_fatal : probability going from critical to fatal # given as a constant parameter
+    =b : testing -> attack rate
     c: contracts
    """
     #I will focus on this later
@@ -144,18 +125,14 @@ def model(t , y , R_t , inc_days , inf_days , d_hosp , d_crit , prob_assymp ,  p
     to_return = [New_S , New_E , New_I , New_H , New_C , New_R , New_D]
     return(to_return)
     
-    
 
-
-# In[6]:
-
-
-#Maybe this function could also return hosp beds and day of lockdown
+#MAPE for evaluation
 def mean_absolute_percentage_error(y_true, y_pred):
     y_true, y_pred = np.array(y_true), np.array(y_pred)
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
 
+#Extracting the intervation date for each country
 def interventaion_day(country_df):
   country_df['Date'] = pd.to_datetime(country_df['Date'])
   country_df['quarantine'] = pd.to_datetime(country_df['quarantine'])
@@ -163,6 +140,7 @@ def interventaion_day(country_df):
   int_days = int_days.days
   return(int_days)
   
+#Extracting the required infromation for each country
 def get_country(Country):
   #Getting the country
     test = df[df['Name'] == Country]
@@ -187,11 +165,7 @@ def get_country(Country):
     int_day = interventaion_day(test)
     return (population , infected , days , true_cases_train , true_fatalities_train , true_cases_test , true_fatalities_test,int_day)
 
-
-# In[ ]:
-
-
-#My designed function
+#My designed function for estimating the Rt based on the intervantions of each country3
 def new_Rt(b,c,a,Rt):
   """
   @params
@@ -202,15 +176,17 @@ def new_Rt(b,c,a,Rt):
   """
   return (Rt - (1-b)**(c*a)*Rt)
 
+#Another function for estimating the Rt after an internvation based on linear decaying
 def linear_decay(Rold , Rnew , total_steps , step): #t stands for steps of decaying 
     Rt = Rold - ((Rold - Rnew)/total_steps)*step
     return(Rt)
 
-
+#Estimating the for each timestep
 def find_Rt(t):
+
   if (t > intervention_date) and (t <= intervention_date + intervention_duration):
       Rt_new = new_Rt(b,c,a,R0) 
-          #If t has not reached the half time of intervention duration for the measures to full applied
+          #If t has not reached half the time of time intervention duration for the measures to full applied
       if (t < (intervention_date + intervention_duration/2)):
               #Applying the decaying function
               #This is the decaying step, will decay from step = 1 until step = total_steps
@@ -229,25 +205,21 @@ def find_Rt(t):
           #Another idea is to give the new Rt value
           #Finaly I can add a increasing function which will slowly return the value back to R0!!
           
-          #best idea is the increasing function but is pretty weird to be applied
           #For now I am giving the new Rt
       return Rt_new
       #Finally if the interventaion day have not yet been reached returns R0
   else:
       return R0
 
-
-# In[7]:
-
-
 ##Functions for evaluation and calibration
+# These function search the optimal constant parameter so the model is fitted on the given data
 #Info about this function on the above section
 def evaluation_final(params, Country ,opt_days, forecast_days = 0,   inc_days = 5.6, inf_days = 2.9 , to_return = False):
 
 #added the intervantion time and set as default the 30 days
 #Added the forecast_days to forecast ahead on the future
-#Initializing
 
+  #Initializing values
   inc_days = inc_days
   inf_days = inf_days
   R_0 , d_hosp, d_crit, prob_assymp, prob_severe_critical, prob_crit_fatal, b , c ,intervantion_time = params
@@ -255,10 +227,10 @@ def evaluation_final(params, Country ,opt_days, forecast_days = 0,   inc_days = 
   #Keeping last 14 days as a test set!
   #If foreacst days = 14 then I am adding them to my forecast
   days = days + forecast_days
-  #Giving initial conditions, on the final work it will change!!!
+  #Giving initial conditions
   initials = [(population - n_infected)/ population , 0, n_infected/population, 0, 0, 0, 0]
 
-#Varying function, a combination between the two Rt functions
+  #Varying function, a combination between the two Rt functions described before
   def varying_Rt(t):
     if (t > intervantion_time):
       return (R_0 / (1 + (t/c)**b))
@@ -314,9 +286,7 @@ def evaluation_final(params, Country ,opt_days, forecast_days = 0,   inc_days = 
     return(msle)
 
 
-# In[8]:
-
-
+#A function to plot the results
 def plot_results(true_train , predicted_train, true_test,predicted_test): #edit it later
   plt.figure(figsize = (12,6))
   t = np.arange(0 , len(true_train))
@@ -333,9 +303,11 @@ def plot_results(true_train , predicted_train, true_test,predicted_test): #edit 
   plt.show()
 
 
-# In[15]:
+       
+# A function which searches the best parameters for the model
 
-
+# The final model uses paramteres extracted from literature
+# This function is used to evaluate the forecasting performance of the model
 def optimize_final(guesses_initial,  bounds,  Country):
   #Optimizing, find the best configuration
   to_optimize = [35,40,45]
@@ -383,11 +355,8 @@ def optimize_final(guesses_initial,  bounds,  Country):
   #returning the set of fitted parameters for each country
   to_return = [R_0 , d_hosp , d_crit , prob_assymp , prob_severe_critical , prob_crit_fatal]
   return (to_return)
-  
-
-
-# In[16]:
-
+ 
+#Testing the model
 
 country = "Spain"
 int_day = get_country(country)[7]
@@ -397,30 +366,6 @@ bounds= ((1, 20) , (1,15) , (2,20) , (0.5,1) , (0,1) , (0,1) , (1, 5), (1, 100),
 
 res = optimize_final(initial_guess,  bounds ,country )
 
-
-# In[ ]:
-
-
-#I like the results with the manualy extracted int_day
-
-
-# ## Building the model
-# 
-# 
-
-# #### Find the R0(as a constant) on the last 7 or 14 days
-# 
-# 
-# *   Fit the curve on the actual set by training
-# *   Find optimal R_0 and maybe the other parameters
-# *   Recreate the simulation with my varying formula for rt
-# 
-# 
-# 
-
-# In[17]:
-
-
 country = "Italy"
 int_day = get_country(country)[7]
 #Finding the true intervention date and calibrating it a bit!
@@ -428,9 +373,6 @@ initial_guess = [3.6, 4, 14, 0.8, 0.1, 0.3, 2, 50 , int_day]
 bounds= ((1, 20) , (1,15) , (2,20) , (0.5,1) , (0,1) , (0,1) , (1, 5), (1, 100),(int_day-5,int_day+5))
 
 res = optimize_final(initial_guess,  bounds ,country)
-
-
-# In[ ]:
 
 
 #Now i am recreating the events with the parameters i have and my function!
