@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
 
 import pandas as pd
 import numpy as np
@@ -26,10 +21,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
-
-
-# In[ ]:
-
 
 #Add a function to return the day of interventation
 #Preprocess the dataset a bit
@@ -59,8 +50,6 @@ extra['region'] = extra.fillna('to_keep')
 extra = extra[extra['region']=='to_keep']
 country_df = pd.merge(df, extra, left_on = 'Name' , right_on = 'country', how='inner').drop_duplicates('Id')
 
-
-# In[ ]:
 
 
 ### Building the equations for the forecasting  model
@@ -103,9 +92,6 @@ def dR_dt(I , H , inf_days , d_hosp , prob_assymp , prob_crit_fatal):
 def dD_dt(C , d_crit , prob_crit_fatal ):
     #those who are critical multiplied by the prob
     return ( prob_crit_fatal * C/d_crit)
-
-
-# In[ ]:
 
 
 #Model:
@@ -155,13 +141,10 @@ def model(t , y , R_t , inc_days , inf_days , d_hosp , d_crit , prob_assymp ,  p
     to_return = [New_S , New_E , New_I , New_H , New_C , New_R , New_D]
     return(to_return)
     
-    
-
-
-# In[ ]:
-
+   
 
 #Identifies the date a country applied extra measures
+#This function is used mainly for calibration
 def interventaion_day(country_df):
     country_df['Date'] = pd.to_datetime(country_df['Date'])
     country_df['quarantine'] = pd.to_datetime(country_df['quarantine'])
@@ -231,15 +214,13 @@ def My_Rt(t):
         return R_0
 
 
-# In[ ]:
+#Building the dashboard!
 
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 #Initializing
 app = dash.Dash(external_stylesheets = [dbc.themes.CYBORG])
 
-
-# In[ ]:
 
 
 #Building the Layout
@@ -555,10 +536,7 @@ app.layout = dbc.Container([
 ])
 
 
-# In[ ]:
-
-
-#Functions for callbacks
+#Functions used for the callbacks to update the graph
 
 #Initializing the values from the dashboard
 def initialize_vals(inc_days, inf_days, hosp_days, crit_days, prop_asympt, freq_crit, mort_crit, initial_r0, 
@@ -645,9 +623,6 @@ def build_graph(df):
     return fig
 
 
-# In[ ]:
-
-
 #Building the callback
 @app.callback(
     Output('main_graph' , 'figure'),
@@ -708,4 +683,5 @@ def update_graph(country, days, inc_days, inf_days, hosp_days, crit_days, prop_a
 
 
 #Initializing
-
+if __name__ == '__main__':
+    app.run_server(debug = False)
