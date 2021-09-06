@@ -2,7 +2,8 @@
 ## A forecasting framework considering the uncertainties found in Covid-19 literature regarding its core mechanism
 
 #### This project is the merged work for the courses "Data-Driven-Decision-Making" and "Complex-Data" of the Data Science MSc program at the University of Skövde.
-##### The project was completed in October 2020. The framework is designed in June 2021
+##### The project was completed in October 2020. The framework is designed using plotly-dash in June 2021
+
 
 It results in a Data-Driven-Decision-Making (DDDM) framework responsible for simulating the spread of Covid-19 in a picked country.
 The framework uses a SEIR-HCD epidemiological model to forecast (among others) the number of cases and hospitalizations.
